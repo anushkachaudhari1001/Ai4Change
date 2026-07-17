@@ -173,14 +173,6 @@ The project includes detailed documentation for easier understanding and deploym
 
 # 🚀 Getting Started
 
-## Clone Repository
-
-```bash
-git clone https://github.com/anushkachaudhari1001/Ai4Change.git
-```
-
----
-
 ## Frontend Setup
 
 ```bash
