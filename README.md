@@ -1,150 +1,291 @@
-# TruthLens AI
+<div align="center">
 
-> AI-powered fake news detection with explainable credibility analysis.
+# 🧠 TruthLens AI
 
-TruthLens AI is a full-stack web application that analyzes any news article (text, URL, or file upload) and returns a fake/real prediction, a 0–100 credibility score, an explainable AI heatmap, source reputation, and downloadable PDF/JSON reports. Powered by GPT-5.2 via the Emergent Universal LLM key.
+### AI-Powered Fake News Detection & Credibility Analysis Platform
 
----
-
-## Table of Contents
-
-1. [Features](#features)
-2. [Tech Stack](#tech-stack)
-3. [Quick Start](#quick-start)
-4. [Environment Variables](#environment-variables)
-5. [Project Structure](#project-structure)
-6. [Documentation](#documentation)
-7. [Test Credentials](#test-credentials)
+![React](https://img.shields.io/badge/React-18-blue?logo=react)
+![Python](https://img.shields.io/badge/Python-3.11-yellow?logo=python)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3-38B2AC?logo=tailwind-css)
+![MongoDB](https://img.shields.io/badge/MongoDB-Database-47A248?logo=mongodb)
+![JWT](https://img.shields.io/badge/JWT-Authentication-black?logo=jsonwebtokens)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
 
-## Features
+### 🚀 Intelligent Fake News Detection using AI, Credibility Scoring & Source Verification
 
-| Feature | Description |
-|---|---|
-| 🎯 **Fake News Detection** | GPT-5.2 classifies articles as `real` or `fake` with 50–99% confidence |
-| 📊 **Credibility Score** | 0–100 score weighting writing style, sources, evidence, bias, emotional language, historical reliability |
-| 🧠 **Explainable AI** | Inline color-coded highlights: clickbait, emotional language, bias, unsupported claims, sensational terms, contradictions |
-| ⚡ **Trend Analytics** | Live dashboard with fake/real pie, timeline, credibility distribution, confidence histogram, topic breakdown |
-| 📄 **Report Generation** | PDF (reportlab) and JSON export of every analysis |
-| 🌐 **Source Reliability** | Instant trust/bias/score ratings for 15+ seeded major news domains |
-| 💬 **AI Chat Assistant** | Floating GPT-5.2 chat with per-article context; ask "why suspicious?", "how to verify?" |
-| 🔐 **Auth** | JWT email/password + Emergent Google OAuth; role-based (admin/analyst/user); forgot-password flow |
-| 👨‍💼 **Admin Panel** | Platform stats, user management, article moderation |
-| 📁 **Multi-input** | Text paste, URL fetch, drag-drop upload (PDF/DOCX/TXT) |
+</div>
 
-## Tech Stack
+---
 
-**Frontend**: React 19 (CRA), React Router 7, Tailwind CSS, shadcn/ui, Framer Motion, Recharts, Axios, Lucide icons, Sonner toasts.
+# 📖 Overview
 
-**Backend**: FastAPI, Motor (async MongoDB), PyJWT + bcrypt, `emergentintegrations` (LlmChat → GPT-5.2), reportlab (PDF), pypdf + python-docx (file extraction), httpx.
+TruthLens AI is an AI-powered misinformation detection platform designed to help users evaluate the credibility of online news articles. It analyzes content using artificial intelligence and provides credibility scores, source reliability insights, and detailed reports to help users identify potentially misleading information.
 
-**Database**: MongoDB (collections: `users`, `articles`, `password_resets`, `chat_messages`, `feedback`).
+The platform combines modern web technologies with AI-based analysis to provide an intuitive, fast, and user-friendly experience.
 
-**AI**: OpenAI GPT-5.2 via Emergent Universal LLM key.
+---
 
-## Quick Start
+# ✨ Key Features
+
+## 🤖 AI-Powered Analysis
+
+- Analyze news articles using AI
+- Credibility score generation
+- Fake vs Real prediction
+- Intelligent content evaluation
+
+---
+
+## 📊 Interactive Dashboard
+
+- Personalized dashboard
+- Analysis history
+- Recent activity
+- Quick insights
+
+---
+
+## 📑 Detailed Reports
+
+- AI-generated credibility reports
+- Confidence scoring
+- Source reliability information
+- Downloadable reports
+
+---
+
+## 🔐 User Authentication
+
+- Secure Login
+- User Registration
+- JWT Authentication
+- Protected Routes
+
+---
+
+## 📈 Analytics
+
+- Previous analyses
+- Trending news
+- User history
+- Report management
+
+---
+
+## ⚙️ Responsive User Interface
+
+- Modern React Interface
+- Mobile Friendly
+- Fast Navigation
+- Clean Dashboard Design
+
+---
+
+# 🏗️ Project Architecture
+
+```
+TruthLensAI
+│
+├── backend
+│   ├── server.py
+│   ├── requirements.txt
+│   └── API Services
+│
+├── frontend
+│   ├── src
+│   ├── public
+│   ├── components
+│   └── pages
+│
+├── docs
+│
+├── tests
+│
+└── README.md
+```
+
+---
+
+# 🛠️ Tech Stack
+
+## Frontend
+
+- React.js
+- Tailwind CSS
+- JavaScript
+- HTML5
+- CSS3
+
+---
+
+## Backend
+
+- Python
+- REST API
+- JWT Authentication
+
+---
+
+## Database
+
+- MongoDB
+
+---
+
+## AI & Analysis
+
+- AI-based credibility evaluation
+- Content analysis
+- Source verification
+
+---
+
+# 📂 Project Modules
+
+- Landing Page
+- User Authentication
+- Dashboard
+- AI Analysis
+- Reports
+- History
+- Trending News
+- Admin Panel
+- Settings
+
+---
+
+# 📚 Documentation
+
+The project includes detailed documentation for easier understanding and deployment.
+
+| Document | Description |
+|----------|-------------|
+| API.md | API Reference |
+| ARCHITECTURE.md | System Architecture |
+| DATABASE.md | Database Design |
+| DEPLOYMENT.md | Deployment Guide |
+| TROUBLESHOOTING.md | Common Issues |
+| WORKFLOW.md | Project Workflow |
+
+---
+
+# 🚀 Getting Started
+
+## Clone Repository
 
 ```bash
-# 1. Backend .env is pre-configured in /app/backend/.env with:
-#    MONGO_URL, DB_NAME, CORS_ORIGINS, EMERGENT_LLM_KEY, JWT_SECRET
-
-# 2. Services run under supervisor:
-sudo supervisorctl restart backend
-sudo supervisorctl restart frontend
-
-# 3. Access the app:
-#    Frontend: https://<your-preview-domain>
-#    Backend:  https://<your-preview-domain>/api
+git clone https://github.com/anushkachaudhari1001/Ai4Change.git
 ```
 
-**First-time flow:**
-1. Visit `/register` → create account (first user auto-becomes admin)
-2. Land on `/dashboard`
-3. Click **Analyze** → paste article or drop file → get instant analysis
-4. Explore **History**, **Trending**, **Sources**, **Reports**
+---
 
-## Environment Variables
+## Frontend Setup
 
-Backend (`/app/backend/.env`):
-
-| Var | Purpose | Required |
-|---|---|---|
-| `MONGO_URL` | MongoDB connection string | ✅ |
-| `DB_NAME` | Database name | ✅ |
-| `CORS_ORIGINS` | Comma-separated allowed origins (default `*`) | ✅ |
-| `EMERGENT_LLM_KEY` | Universal LLM key for GPT-5.2 | ✅ |
-| `JWT_SECRET` | Secret for signing JWT tokens | ✅ |
-
-Frontend (`/app/frontend/.env`):
-
-| Var | Purpose |
-|---|---|
-| `REACT_APP_BACKEND_URL` | External backend URL (proxied via `/api`) |
-
-## Project Structure
-
-```
-/app
-├── backend/
-│   ├── server.py            # All FastAPI routes + AI + auth logic
-│   ├── requirements.txt
-│   └── .env
-├── frontend/
-│   ├── src/
-│   │   ├── App.js           # Route setup + AuthProvider
-│   │   ├── index.css        # Global styles + design tokens
-│   │   ├── lib/
-│   │   │   ├── api.js       # Axios client w/ JWT interceptor
-│   │   │   ├── auth.jsx     # AuthProvider + useAuth hook
-│   │   │   └── utils.js
-│   │   ├── components/
-│   │   │   ├── DashboardLayout.jsx   # Sidebar + main outlet
-│   │   │   ├── CredibilityGauge.jsx  # Animated SVG gauge
-│   │   │   ├── AIAssistant.jsx       # Floating chat panel
-│   │   │   └── ui/                   # shadcn/ui primitives
-│   │   └── pages/
-│   │       ├── Landing.jsx
-│   │       ├── Login.jsx / Register.jsx / ForgotPassword.jsx
-│   │       ├── Dashboard.jsx
-│   │       ├── Analyze.jsx
-│   │       ├── History.jsx
-│   │       ├── Reports.jsx
-│   │       ├── Trending.jsx
-│   │       ├── Sources.jsx
-│   │       ├── Settings.jsx
-│   │       └── Admin.jsx
-│   └── package.json
-├── memory/
-│   ├── PRD.md
-│   └── test_credentials.md
-└── docs/
-    ├── ARCHITECTURE.md
-    ├── API.md
-    ├── WORKFLOW.md
-    ├── DATABASE.md
-    ├── DEPLOYMENT.md
-    └── TROUBLESHOOTING.md
+```bash
+cd frontend
+npm install
+npm start
 ```
 
-## Documentation
+---
 
-| Doc | Purpose |
-|---|---|
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System architecture, data flow, module responsibilities |
-| [`docs/WORKFLOW.md`](docs/WORKFLOW.md) | End-to-end user + AI analysis workflow |
-| [`docs/API.md`](docs/API.md) | Complete REST API reference (all `/api/*` endpoints) |
-| [`docs/DATABASE.md`](docs/DATABASE.md) | MongoDB collections and document schemas |
-| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Deploy to Emergent, Render, Railway, AWS |
-| [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | Common issues + fixes |
+## Backend Setup
 
-## Test Credentials
+```bash
+cd backend
+pip install -r requirements.txt
+python server.py
+```
 
-See `/app/memory/test_credentials.md`.
+---
 
-- **Admin**: `test@truthlens.ai` / `test123`
-- **User**: `newtest@truthlens.ai` / `test123`
+# 📁 Environment Variables
 
-## License
+Create a `.env` file inside the backend directory and configure the required environment variables.
 
-Proprietary — for demonstration purposes only.
+Example:
+
+```env
+MONGO_URL=your_database_url
+JWT_SECRET=your_secret_key
+EMERGENT_LLM_KEY=your_api_key
+```
+
+**⚠️ Do not commit your `.env` file to GitHub.**
+
+---
+
+# 🧪 Testing
+
+The project includes test cases and testing utilities for validating application functionality.
+
+Run tests as required after installing project dependencies.
+
+---
+
+# 🔒 Security Features
+
+- JWT Authentication
+- Protected API Routes
+- Environment Variable Configuration
+- Secure User Authentication
+
+---
+
+# 📸 Screenshots
+
+> Add screenshots of:
+
+- Landing Page
+- Login Page
+- Dashboard
+- AI Analysis
+- Report Generation
+
+(Recommended for better project presentation.)
+
+---
+
+# 🚀 Future Enhancements
+
+- Real-time News Verification
+- Browser Extension
+- Mobile Application
+- Multilingual Support
+- Explainable AI Predictions
+- Advanced Analytics Dashboard
+- Social Media Fact Checking
+
+---
+
+# 👩‍💻 Team
+
+**Hackathon Project**
+
+Developed as part of an AI Hackathon to combat misinformation using intelligent credibility analysis.
+
+---
+
+# 🤝 Contributing
+
+Contributions, suggestions and improvements are welcome.
+
+Fork the repository, create your feature branch, and submit a pull request.
+
+---
+
+# 📄 License
+
+This project is licensed under the MIT License.
+
+---
+
+<div align="center">
+
+### ⭐ If you found this project useful, consider giving it a star!
+
+**TruthLens AI — Empowering users to make informed decisions through AI-powered news credibility analysis.**
+
+</div>

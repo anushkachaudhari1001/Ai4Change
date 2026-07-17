@@ -94,3 +94,14 @@ backend/.env
 # Python virtual environments
 env/
 backend/env/
+
+# Python caches
+.pytest_cache/
+.ruff_cache/
+
+# AI generated files
+.emergent/
+
+# Test output
+test_reports/
+test_result.md
