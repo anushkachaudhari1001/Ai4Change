@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Search, Star, Trash2, Eye } from "lucide-react";
@@ -15,11 +15,21 @@ export default function History() {
   const [prediction, setPrediction] = useState("all");
   const [favOnly, setFavOnly] = useState(false);
 
-  const load = () => {
-    api.get("/history", { params: { q, prediction: prediction === "all" ? "" : prediction, favorite: favOnly ? "true" : "" } })
+  const load = useCallback(() => {
+    api
+      .get("/history", {
+        params: {
+          q,
+          prediction: prediction === "all" ? "" : prediction,
+          favorite: favOnly ? "true" : "",
+        },
+      })
       .then((r) => setItems(r.data));
-  };
-  useEffect(load, [prediction, favOnly]);
+  }, [q, prediction, favOnly]);
+
+  useEffect(() => {
+  load();
+}, [load]);
 
   const del = async (id) => {
     if (!confirm("Delete this analysis?")) return;
