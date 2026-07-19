@@ -44,7 +44,7 @@ export default function Landing() {
       <section className="max-w-7xl mx-auto px-6 pt-24 pb-24 text-center">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-medium mb-6">
-            <Sparkles className="w-3 h-3" /> Powered by GPT-5.2 & Explainable AI
+            <Sparkles className="w-3 h-3" /> Powered by OpenRouter AI Model
           </div>
           <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tighter leading-[1.05] max-w-4xl mx-auto">
             See through the noise.<br />
@@ -76,7 +76,7 @@ export default function Landing() {
               <div className="rounded-2xl bg-white p-6 border border-slate-100">
                 <div className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Time</div>
                 <div className="text-2xl font-display font-semibold text-slate-900">2.1s</div>
-                <div className="text-sm text-slate-500 mt-1">GPT-5.2</div>
+                <div className="text-sm text-slate-500 mt-1"> OpenRouter AI Model</div>
               </div>
             </div>
           </div>
@@ -129,7 +129,7 @@ export default function Landing() {
           <div className="text-xs uppercase tracking-[0.2em] font-bold text-blue-600 mb-3">Built on</div>
           <h2 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight mb-8">Industrial-grade AI stack.</h2>
           <div className="flex flex-wrap justify-center gap-8 text-slate-600 font-medium">
-            {["React", "FastAPI", "MongoDB", "GPT-5.2", "HuggingFace", "Docker"].map(t => (
+            {["React", "FastAPI", "MongoDB", " OpenRouter AI Model", "HuggingFace", "Docker"].map(t => (
               <div key={t} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-teal-500" />{t}</div>
             ))}
           </div>

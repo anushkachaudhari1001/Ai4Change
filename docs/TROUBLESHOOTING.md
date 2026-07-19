@@ -1,160 +1,462 @@
 # TruthLens AI – Troubleshooting
 
-Common issues and their fixes.
+This document lists common issues you may encounter while running TruthLens AI locally or in production, along with their solutions.
 
 ---
 
-## Login / Auth
+# Authentication
 
-### `401 Invalid credentials`
-- Verify credentials in `/app/memory/test_credentials.md`.
-- Register a fresh user via `POST /api/auth/register` if the DB was wiped.
+## `401 Invalid credentials`
 
-### `Google auth failed`
-- The Emergent OAuth session token is single-use and expires quickly.
-- If the URL hash contains `#session_id=…` but login fails, the token has already been consumed. Restart the flow from the login page.
+**Cause**
+- Incorrect email or password.
 
-### `Missing token` / `Invalid token`
-- Frontend axios interceptor drops the token on 401 and redirects to `/login`. Simply sign in again.
-- Check `localStorage.tl_token` exists in browser DevTools.
+**Solution**
+- Verify your login credentials.
+- Register a new account if the database was reset.
+- Ensure the user exists in the `users` collection.
 
-### First user isn't admin
-- The `admin` role is only granted to the **very first** row inserted into the `users` collection. If seeding was done manually, run:
+---
+
+## `Missing token`
+
+**Cause**
+- No JWT token was sent with the request.
+
+**Solution**
+- Login again.
+- Verify that `localStorage.tl_token` exists in your browser.
+- Ensure the frontend attaches the Authorization header.
+
+---
+
+## `Invalid token`
+
+**Cause**
+- JWT has expired or is invalid.
+
+**Solution**
+- Login again to obtain a fresh token.
+- Make sure `JWT_SECRET` has not changed after generating tokens.
+
+---
+
+## First user is not Admin
+
+**Cause**
+- The database was manually modified or seeded.
+
+**Solution**
+
+Run the following command inside MongoDB:
+
 ```javascript
-db.users.updateOne({ email: "admin@example.com" }, { $set: { role: "admin" } });
+db.users.updateOne(
+  { email: "admin@example.com" },
+  { $set: { role: "admin" } }
+)
+```
+
+Replace the email with the appropriate administrator account.
+
+---
+
+# AI Analysis
+
+## `500 Internal Server Error`
+
+**Cause**
+- An unexpected backend exception occurred.
+
+**Solution**
+
+- Check the backend terminal for the complete traceback.
+- Restart the FastAPI server.
+- Verify that all environment variables are configured correctly.
+
+---
+
+## `AI parsing failed`
+
+**Cause**
+- The AI model returned invalid or incomplete JSON.
+
+**Solution**
+
+- Retry the analysis.
+- Ensure the AI model is available.
+- Verify that the system prompt has not been modified.
+
+---
+
+## `OPENROUTER_API_KEY missing`
+
+**Cause**
+- The API key was not loaded.
+
+**Solution**
+
+Verify your `.env` contains:
+
+```env
+OPENROUTER_API_KEY=your_api_key_here
+```
+
+Restart the backend after editing `.env`.
+
+---
+
+## `401 Unauthorized` from OpenRouter
+
+**Cause**
+- Invalid API key.
+
+**Solution**
+
+- Verify the API key.
+- Generate a new API key from your OpenRouter account if necessary.
+
+---
+
+## `402 Payment Required`
+
+**Cause**
+- The selected AI model requires credits.
+
+**Solution**
+
+- Switch to a free model.
+- Or add credits to your OpenRouter account.
+
+---
+
+## `404 Model Not Found`
+
+Example:
+
+```
+This model is unavailable for free.
+```
+
+**Cause**
+
+The selected model is no longer free.
+
+**Solution**
+
+Replace it with another free model.
+
+Example:
+
+```python
+model="qwen/qwen3-32b"
 ```
 
 ---
 
-## Analyze / AI
+## Analysis takes longer than expected
 
-### `502 AI parsing failed: …`
-- The LLM returned non-JSON output. This is usually transient — retry.
-- Check backend logs: `tail -n 100 /var/log/supervisor/backend.err.log`
-- If persistent, verify `EMERGENT_LLM_KEY` is set correctly in `/app/backend/.env`.
+**Cause**
 
-### `Article text too short. Provide at least 30 characters.`
-- Paste more content, or use one of the **Sample fake / Sample real** buttons to test.
+- Large articles
+- Slow internet connection
+- High OpenRouter traffic
 
-### `URL fetch failed: …`
-- Target site may block bots. Try copy-pasting the text into the Text tab.
-- Check the URL is publicly accessible (no login wall).
+**Solution**
 
-### `Unsupported file type. Use PDF, DOCX, or TXT.`
-- Only these three MIME types are supported. Convert others first.
-
-### Analysis takes > 15 seconds
-- Large articles (up to 10 000 chars) can take 5–10 s with GPT-5.2. Longer waits usually mean network issues to the LLM provider.
-- Reduce article length or try again.
+- Reduce article length.
+- Retry after a few seconds.
 
 ---
 
-## Emergent LLM Key
+## `Article text too short`
 
-### `EMERGENT_LLM_KEY` errors / low balance
-- Universal-key balance is running low. Top-up:
-  **Profile → Universal Key → Add Balance** (or enable Auto Top-up).
-- Alternatively replace with your own OpenAI key in the code (see `run_analysis`).
+**Cause**
 
----
+The submitted article contains fewer than 30 characters.
 
-## Database
+**Solution**
 
-### Getting `ObjectId is not iterable` errors from API
-- **Should not happen** in current code — `_id` is stripped everywhere. If it does, verify no route directly returns a document without `.pop("_id", None)` or `{"_id": 0}` projection.
-
-### History empty after logout/login
-- History is scoped by `user_id`. If you register a new account, you start fresh.
-
-### DB got wiped / need to seed
-- Just register a new user via the UI — the first one automatically becomes admin.
-- Then use the **Sample real / Sample fake** buttons in `/analyze` to generate history.
+Paste more content or upload a document.
 
 ---
 
-## Frontend
+## URL Analysis Fails
 
-### Blank white page / red error overlay
-1. Check browser DevTools Console for the exception.
-2. Check `tail -n 50 /var/log/supervisor/frontend.err.log`.
-3. If build failed, look for missing imports or unresolved variables (like the past `theme is not defined` bug from partial revert).
+**Cause**
 
-### "Cannot read properties of null" reading user
-- User is not logged in but a protected component rendered. Check that the component sits inside `<Private>` in `App.js`.
+Some news websites block automated requests.
 
-### Charts render blank
-- Analytics endpoints return empty arrays for new users. Analyze a few articles first.
+**Solution**
 
-### AI Assistant panel doesn't respond
-- Check backend logs — LLM call may have failed.
-- Confirm the JWT is attached (Network tab → `/api/chat` request has `Authorization` header).
+- Copy and paste the article text instead.
+- Verify that the URL is publicly accessible.
 
 ---
 
-## Deployment
+## Unsupported File Type
 
-### Preview works but production doesn't
-- Changes in preview are not automatically pushed to production. Click **Deploy** in the Emergent UI.
-- Verify env vars are set in the production environment (they're separate from preview).
+Supported formats:
 
-### CORS errors in production
-- Set `CORS_ORIGINS` to your production frontend URL (comma-separated).
-- Restart the backend after changing `.env`: `sudo supervisorctl restart backend`.
+- PDF
+- DOCX
+- TXT
 
-### Backend won't start after env change
-```bash
-tail -n 200 /var/log/supervisor/backend.err.log
+Convert unsupported files before uploading.
+
+---
+
+# Database
+
+## MongoDB Connection Failed
+
+**Cause**
+
+Incorrect MongoDB URL.
+
+**Solution**
+
+Verify:
+
+```env
+MONGO_URL=...
+DB_NAME=...
 ```
+
+Ensure MongoDB is running.
+
+---
+
+## History is Empty
+
+**Cause**
+
+History is user-specific.
+
+**Solution**
+
+Login using the same account used during analysis.
+
+---
+
+## ObjectId Serialization Error
+
+Example:
+
+```
+ObjectId is not JSON serializable
+```
+
+**Solution**
+
+Exclude MongoDB's `_id` field:
+
+```python
+{"_id": 0}
+```
+
+or
+
+```python
+document.pop("_id", None)
+```
+
+before returning API responses.
+
+---
+
+# Frontend
+
+## Blank White Screen
+
+**Solution**
+
+1. Open Browser Developer Tools.
+2. Check the Console tab.
+3. Fix the first JavaScript error displayed.
+
+---
+
+## Failed API Requests
+
+Verify:
+
+```env
+REACT_APP_BACKEND_URL=http://127.0.0.1:8000
+```
+
+Restart the frontend after changing `.env`.
+
+---
+
+## AI Chat Doesn't Respond
+
+Check:
+
+- Backend server is running.
+- OpenRouter API key is valid.
+- JWT token is attached.
+- `/api/chat` returns HTTP 200.
+
+---
+
+## Dashboard Charts Are Empty
+
+Charts require analyzed articles.
+
+Analyze a few articles first.
+
+---
+
+# Backend
+
+## Backend Doesn't Start
+
+Check the terminal for errors.
+
 Common causes:
-- `.env` syntax error (comment on same line as value, missing quotes)
-- Missing key referenced in code (e.g. `os.environ['MONGO_URL']` will `KeyError` if not set)
 
-Fix and restart:
-```bash
-sudo supervisorctl restart backend
+- Missing `.env`
+- Missing environment variables
+- MongoDB not running
+- Syntax errors
+
+---
+
+## Backend Returns 404
+
+Example:
+
+```
+GET /
+404 Not Found
+```
+
+This is normal.
+
+The API is available under:
+
+```
+http://127.0.0.1:8000/api/
+```
+
+Swagger documentation:
+
+```
+http://127.0.0.1:8000/docs
 ```
 
 ---
 
-## Debug Commands
+# Deployment
+
+## CORS Error
+
+Ensure:
+
+```env
+CORS_ORIGINS=http://localhost:3000
+```
+
+or
+
+```env
+CORS_ORIGINS=https://yourdomain.com
+```
+
+Restart the backend afterwards.
+
+---
+
+## Environment Variables Not Loading
+
+After modifying `.env`, always restart the backend.
+
+Example:
 
 ```bash
-# Backend health
-curl $REACT_APP_BACKEND_URL/api/
-
-# Quick login test
-curl -X POST $REACT_APP_BACKEND_URL/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@truthlens.ai","password":"test123"}'
-
-# View service status
-sudo supervisorctl status
-
-# View recent backend logs
-tail -n 100 /var/log/supervisor/backend.err.log
-tail -n 100 /var/log/supervisor/backend.out.log
-
-# View recent frontend logs
-tail -n 100 /var/log/supervisor/frontend.err.log
-
-# Inspect MongoDB
-mongosh
-> use test_database
-> db.users.find().pretty()
-> db.articles.count()
+uvicorn server:app --reload
 ```
 
 ---
 
-## Reporting Bugs
+# Useful Commands
 
-When reporting an issue:
+## Start Backend
 
-1. **Environment**: preview or production?
-2. **Steps to reproduce**: exact clicks / inputs.
-3. **Expected vs actual behavior**.
-4. **Screenshots** (especially for UI issues).
-5. **Console errors** (browser DevTools → Console tab).
-6. **Backend logs** (last 50 lines of `backend.err.log`).
+```bash
+cd backend
 
-This dramatically speeds up the fix.
+uvicorn server:app --reload
+```
+
+---
+
+## Start Frontend
+
+```bash
+cd frontend
+
+npm start
+```
+
+---
+
+## Install Backend Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Install Frontend Dependencies
+
+```bash
+npm install
+```
+
+---
+
+## Open Swagger
+
+```
+http://127.0.0.1:8000/docs
+```
+
+---
+
+## Open Frontend
+
+```
+http://localhost:3000
+```
+
+---
+
+# Reporting Issues
+
+When reporting a bug, include:
+
+1. Operating System
+2. Python Version
+3. Node.js Version
+4. Browser
+5. Error Message
+6. Backend Terminal Output
+7. Browser Console Errors
+8. Steps to Reproduce
+
+Providing this information makes debugging significantly faster.
+
+---
+
+# Support
+
+If an issue persists:
+
+- Verify your `.env` configuration.
+- Ensure MongoDB is running.
+- Restart both backend and frontend.
+- Confirm your OpenRouter API key is valid.
+- Test the API using Swagger before testing the frontend.

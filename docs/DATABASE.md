@@ -1,74 +1,84 @@
 # TruthLens AI – Database Schema
 
-Database engine: **MongoDB** (accessed via `motor` async driver).
+**Database Engine:** MongoDB (accessed using the asynchronous `motor` driver)
 
-Database name: from env `DB_NAME`.
+**Database Name:** Configured using the `DB_NAME` environment variable.
 
-## Conventions
+---
 
-- Every document has a **string** `id` field (`uuid.uuid4()`) — used as the public primary key.
-- MongoDB's `_id` (BSON ObjectId) is present but **never returned** by any API endpoint (stripped via `{"_id": 0}` projection or `pop("_id", None)`).
-- Timestamps are stored as ISO-8601 strings (e.g. `"2026-02-06T12:34:56.789+00:00"`) so they are JSON-serializable.
-- No indexes are declared explicitly; consider adding these for production scale:
-  - `users.email` unique
-  - `articles.user_id + created_at` compound
-  - `articles.topics` multikey
+# Conventions
+
+- Every document contains a **string** `id` field generated using `uuid.uuid4()`. This serves as the public primary key.
+- MongoDB's native `_id` (`ObjectId`) is retained internally but is **never returned** by the API (`{"_id": 0}` projection or `pop("_id", None)`).
+- All timestamps are stored as **ISO-8601 UTC strings**, making them JSON serializable.
+- AI-generated analysis is performed using an **OpenRouter-compatible Large Language Model (LLM)**.
+- Recommended production indexes:
+  - `users.email` (Unique)
+  - `articles.user_id + created_at`
+  - `articles.topics`
   - `chat_messages.session_id`
 
 ---
 
-## Collections
-
-### 1. `users`
-
-Registered users. First user auto-promoted to `admin`.
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (uuid) | Public primary key |
-| `email` | string (lowercase) | Unique |
-| `name` | string | Display name |
-| `password` | string (bcrypt hash) | **Never returned by API**. Absent for Google-auth users. |
-| `role` | string | `"admin"` \| `"analyst"` \| `"user"` |
-| `auth_provider` | string | `"local"` \| `"google"` |
-| `picture` | string \| null | Set from Google OAuth if applicable |
-| `theme` | string | `"light"` \| `"dark"` \| `"system"` |
-| `default_model` | string | e.g. `"gpt-5.2"` |
-| `created_at` | ISO string | |
+# Collections
 
 ---
 
-### 2. `articles`
+## 1. `users`
 
-Every analysis (from `/analyze` or `/upload`) is stored here.
+Stores all registered users.
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (uuid) | |
-| `user_id` | string | FK → `users.id` |
-| `headline` | string | Optional user-provided title |
-| `text` | string | Truncated to 10 000 chars |
-| `url` | string | Empty if none provided |
-| `filename` | string | Only if from `/upload` |
-| `favorite` | bool | Toggled via POST `/history/{id}/favorite` |
-| `created_at` | ISO string | |
-| `source` | object \| null | See below — populated only when URL was provided |
-| **AI fields (from LLM)** | | |
-| `prediction` | string | `"real"` \| `"fake"` |
-| `confidence` | int | 50–99 |
-| `credibility_score` | int | 0–100 |
-| `risk_level` | string | `"low"` \| `"medium"` \| `"high"` |
-| `summary` | string | 2–3 sentence summary |
-| `reasoning` | string | Paragraph explanation |
-| `factors` | object | 8 keys, each 0–100 |
-| `highlights` | array | `[ { phrase, category, reason } ]` |
-| `topics` | array of string | e.g. `["politics", "finance"]` |
-| `recommendations` | array of string | Fact-check steps |
-| `suspicious_statements` | array of string | |
-| `time_taken_sec` | float | LLM latency |
-| `model_used` | string | e.g. `"gpt-5.2"` |
+The first registered account is automatically promoted to the **Admin** role.
 
-`source` sub-document:
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string (UUID) | Public primary key |
+| email | string | Unique email address |
+| name | string | Display name |
+| password | string | bcrypt hash (never returned by API) |
+| role | string | `admin`, `analyst`, or `user` |
+| auth_provider | string | `local` or `google` |
+| picture | string / null | Google profile image |
+| theme | string | `light`, `dark`, or `system` |
+| default_model | string | Default AI model (e.g. `qwen/qwen3-32b:free`) |
+| created_at | ISO Date String | Registration timestamp |
+
+---
+
+## 2. `articles`
+
+Stores every article analyzed through either:
+
+- `/api/analyze`
+- `/api/upload`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string (UUID) | Article ID |
+| user_id | string | References `users.id` |
+| headline | string | Optional article title |
+| text | string | Article text (max 10,000 chars) |
+| url | string | Source URL (optional) |
+| filename | string | Present only for uploaded files |
+| favorite | boolean | User favorite status |
+| created_at | ISO Date String | Analysis timestamp |
+| source | object / null | Source credibility information |
+| prediction | string | `real` or `fake` |
+| confidence | integer | Confidence percentage (50–99) |
+| credibility_score | integer | Score between 0–100 |
+| risk_level | string | `low`, `medium`, or `high` |
+| summary | string | AI-generated summary |
+| reasoning | string | AI explanation |
+| factors | object | Individual credibility metrics |
+| highlights | array | Flagged phrases with explanations |
+| topics | array | Detected news categories |
+| recommendations | array | Suggested fact-checking steps |
+| suspicious_statements | array | Potential misinformation claims |
+| time_taken_sec | float | AI response time |
+| model_used | string | AI model used for analysis |
+
+### Example `source`
+
 ```json
 {
   "domain": "reuters.com",
@@ -80,7 +90,8 @@ Every analysis (from `/analyze` or `/upload`) is stored here.
 }
 ```
 
-`factors` sub-document (keys always the same):
+### Example `factors`
+
 ```json
 {
   "writing_style": 88,
@@ -96,63 +107,62 @@ Every analysis (from `/analyze` or `/upload`) is stored here.
 
 ---
 
-### 3. `password_resets`
+## 3. `password_resets`
 
-Ephemeral tokens for the forgot/reset password flow.
+Stores temporary password reset tokens.
 
-| Field | Type | Notes |
-|---|---|---|
-| `token` | string (uuid) | Sent to user |
-| `user_id` | string | FK → `users.id` |
-| `created_at` | ISO string | |
-| `used` | bool | Set true when consumed |
+| Field | Type | Description |
+|-------|------|-------------|
+| token | string (UUID) | Reset token |
+| user_id | string | References `users.id` |
+| created_at | ISO Date String | Token creation time |
+| used | boolean | Indicates whether token has been used |
 
-*(In production, add a TTL index to auto-expire tokens after 1 hour.)*
-
----
-
-### 4. `chat_messages`
-
-Persistent AI Chat Assistant history. One document per user↔AI turn.
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (uuid) | |
-| `session_id` | string | Groups a conversation (`chat-<user_id>` by default) |
-| `user_id` | string | FK → `users.id` |
-| `user_message` | string | |
-| `ai_response` | string | |
-| `article_id` | string \| null | If chat was tied to a specific article |
-| `created_at` | ISO string | |
+> **Production Recommendation:** Add a TTL index to automatically delete expired tokens after one hour.
 
 ---
 
-### 5. `feedback`
+## 4. `chat_messages`
 
-User feedback submitted via `POST /api/feedback`.
+Stores conversation history between users and the AI assistant.
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (uuid) | |
-| `user_id` | string | FK → `users.id` |
-| `article_id` | string | FK → `articles.id` |
-| `rating` | int | 1–5 (or thumbs) |
-| `comment` | string | Optional |
-| `created_at` | ISO string | |
+Each document represents one interaction.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string (UUID) | Message ID |
+| session_id | string | Conversation identifier |
+| user_id | string | References `users.id` |
+| user_message | string | User's message |
+| ai_response | string | AI-generated reply |
+| article_id | string / null | Linked article (optional) |
+| created_at | ISO Date String | Timestamp |
 
 ---
 
-## Sample Documents
+## 5. `feedback`
 
-### Sample `articles` doc (fake news detected)
+Stores user feedback for analyzed articles.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string (UUID) | Feedback ID |
+| user_id | string | References `users.id` |
+| article_id | string | References `articles.id` |
+| rating | integer | Rating (1–5) |
+| comment | string | Optional feedback |
+| created_at | ISO Date String | Timestamp |
+
+---
+
+# Sample Article Document
 
 ```json
 {
-  "_id": "$oid stripped from all API responses",
-  "id": "1a2b3c-…",
+  "id": "1a2b3c-xyz",
   "user_id": "u-uuid",
   "headline": "SHOCKING: Miracle Cure Big Pharma Hides!",
-  "text": "BREAKING! In a stunning revelation…",
+  "text": "BREAKING! In a stunning revelation...",
   "url": "",
   "favorite": false,
   "created_at": "2026-02-06T12:34:56.789+00:00",
@@ -161,37 +171,69 @@ User feedback submitted via `POST /api/feedback`.
   "confidence": 96,
   "credibility_score": 15,
   "risk_level": "high",
-  "summary": "The article uses sensational language and unverifiable claims…",
-  "reasoning": "The piece exhibits multiple hallmarks of misinformation…",
-  "factors": { "writing_style": 25, "headline_quality": 10, "source_reputation": 20,
-               "language_complexity": 15, "evidence_presence": 5, "bias": 90,
-               "emotional_language": 95, "historical_reliability": 10 },
+  "summary": "The article contains sensational language and unsupported medical claims.",
+  "reasoning": "Multiple misinformation indicators were detected, including emotional language, lack of evidence, and unreliable sourcing.",
+  "factors": {
+    "writing_style": 25,
+    "headline_quality": 10,
+    "source_reputation": 20,
+    "language_complexity": 15,
+    "evidence_presence": 5,
+    "bias": 90,
+    "emotional_language": 95,
+    "historical_reliability": 10
+  },
   "highlights": [
-    { "phrase": "SHOCKING", "category": "clickbait", "reason": "Sensationalized all-caps trigger word" },
-    { "phrase": "miracle cure", "category": "sensational", "reason": "Vague unverifiable claim" },
-    { "phrase": "Doctors HATE this", "category": "clickbait", "reason": "Common misinformation trope" }
+    {
+      "phrase": "SHOCKING",
+      "category": "clickbait",
+      "reason": "Sensational trigger word"
+    }
   ],
-  "topics": ["health"],
+  "topics": [
+    "health"
+  ],
   "recommendations": [
-    "Check the claim against WHO or CDC official statements",
-    "Search for the source publication's reputation on MediaBiasFactCheck",
-    "Look for peer-reviewed studies supporting the alleged 'cure'"
+    "Verify the claim using trusted health organizations.",
+    "Check whether peer-reviewed research supports the claim.",
+    "Compare reports from multiple reliable news sources."
   ],
-  "suspicious_statements": ["'one weird trick will change EVERYTHING'"],
-  "time_taken_sec": 2.4,
-  "model_used": "gpt-5.2"
+  "suspicious_statements": [
+    "One miracle cure changes everything."
+  ],
+  "time_taken_sec": 2.31,
+  "model_used": "qwen/qwen3-32b:free"
 }
 ```
 
 ---
 
-## Recommended Indexes (Production)
+# Recommended MongoDB Indexes
 
 ```javascript
 db.users.createIndex({ email: 1 }, { unique: true });
+
 db.articles.createIndex({ user_id: 1, created_at: -1 });
+
 db.articles.createIndex({ topics: 1 });
+
 db.articles.createIndex({ prediction: 1 });
+
 db.chat_messages.createIndex({ session_id: 1, created_at: 1 });
-db.password_resets.createIndex({ created_at: 1 }, { expireAfterSeconds: 3600 });
+
+db.password_resets.createIndex(
+    { created_at: 1 },
+    { expireAfterSeconds: 3600 }
+);
 ```
+
+---
+
+# Notes
+
+- UUIDs are used instead of exposing MongoDB ObjectIds.
+- Passwords are securely hashed using **bcrypt**.
+- Authentication is handled using **JWT**.
+- AI analysis is generated through the **OpenRouter API** using an **OpenRouter-compatible LLM** (default: `qwen/qwen3-32b:free`).
+- Chat conversations are permanently stored for each user session.
+- MongoDB indexes listed above are recommended for production deployments.

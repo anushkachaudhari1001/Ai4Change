@@ -1,295 +1,464 @@
 # TruthLens AI – Workflow
 
-This document walks through every major user flow in TruthLens AI, from arrival on the landing page to receiving an explainable AI report.
+This document explains the complete workflow of TruthLens AI, from user authentication to AI-powered fake news detection, report generation, and interactive AI assistance.
 
 ---
 
-## 1. Onboarding Flow
+# 1. User Authentication Workflow
 
 ```
                                  ┌───────────────┐
-                                 │   Landing /   │
+                                 │   Landing     │
                                  └───────┬───────┘
-                              Sign up ▲  │  ▲ Sign in
+                              Sign Up ▲  │  ▲ Login
                                       │  ▼  │
                     ┌─────────────────┴─────┴──────────────────┐
                     │                                          │
               ┌─────▼──────┐                            ┌──────▼──────┐
-              │ /register  │                            │   /login    │
+              │ Register   │                            │    Login    │
               └─────┬──────┘                            └──────┬──────┘
                     │                                          │
-        ┌───────────┴────────────┐                ┌────────────┴────────────┐
-        ▼                        ▼                ▼                         ▼
-  [email/password]      [Continue with Google] [email/password]       [Continue with Google]
-        │                        │                │                         │
-        ▼                        ▼                ▼                         ▼
-POST /api/auth/register  Google OAuth redirect  POST /api/auth/login   Google OAuth redirect
-        │                        │                │                         │
-        │      /dashboard#session_id=<id>         │      /dashboard#session_id=<id>
-        │                        │                │                         │
-        └────────────────┬───────┴────────────────┴──────────────┬──────────┘
-                         │                                       │
-                         ▼                                       ▼
-                  POST /api/auth/google (session_id)   → JWT token issued
-                                        │
-                                        ▼
-                                  /dashboard (Home)
+                    ▼                                          ▼
+          POST /api/auth/register                   POST /api/auth/login
+                    │                                          │
+                    ▼                                          ▼
+               JWT Token Issued                        JWT Token Issued
+                    │                                          │
+                    └──────────────────────┬───────────────────┘
+                                           ▼
+                                     Dashboard
 ```
 
-### Roles (assigned at registration)
+### User Roles
 
-- **First registered user** → auto-promoted to `admin`
-- **All subsequent users** → `user` (or `analyst` if promoted by admin)
-- Admin sees additional **Admin** nav item and can manage users
+- The first registered user automatically becomes **Admin**.
+- Every other registered user is assigned the **User** role.
+- Admins can manage users and monitor application statistics.
 
-### Forgot / Reset Password
+---
+
+## Forgot Password Workflow
 
 ```
-/login  → click "Forgot?"
-      → /forgot  → enter email  →  POST /api/auth/forgot-password
-                                     ↓
-                          returns reset_token (dev-mode: echoed in response;
-                          in prod: would be emailed via SendGrid/Resend)
-      → paste token + new password  →  POST /api/auth/reset-password
-                                     ↓
-                          bcrypt-rehashed → return to /login
+Login Page
+      │
+      ▼
+Forgot Password
+      │
+      ▼
+POST /api/auth/forgot-password
+      │
+      ▼
+Reset Token Generated
+      │
+      ▼
+POST /api/auth/reset-password
+      │
+      ▼
+Password Updated
 ```
 
 ---
 
-## 2. Analyze Workflow — The Core Pipeline
+# 2. News Analysis Workflow
 
-This is the heart of TruthLens AI. Here's exactly what happens when a user hits **Analyze**:
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│  User Input  (choose ONE tab)                                        │
-│                                                                      │
-│   [Text]   ─→  headline + article text  (paste / clipboard / sample) │
-│   [URL]    ─→  URL string  (backend fetches HTML → strips tags)      │
-│   [File]   ─→  PDF / DOCX / TXT  (drag-drop or click)                │
-└─────────────────────────────┬────────────────────────────────────────┘
-                              │
-                              ▼
-                POST /api/analyze  OR  POST /api/upload  (JWT-authed)
-                              │
-                              ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  Backend Preprocessing                                               │
-│                                                                      │
-│   1. If URL       → httpx GET → strip <script>/<style>/tags → text   │
-│   2. If PDF       → pypdf.PdfReader → per-page extract               │
-│   3. If DOCX      → python-docx paragraphs                           │
-│   4. If TXT       → decode UTF-8                                     │
-│   5. Length check → reject < 30 chars (400 error)                    │
-│   6. Truncate to 10 000 chars (LLM context safety)                   │
-└─────────────────────────────┬────────────────────────────────────────┘
-                              │
-                              ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  AI Classification  (emergentintegrations.LlmChat → GPT-5.2)         │
-│                                                                      │
-│   SYSTEM_PROMPT + HEADLINE + URL + ARTICLE                           │
-│         ↓                                                            │
-│   GPT-5.2 returns a strict JSON payload:                             │
-│   {                                                                   │
-│     prediction: "real" | "fake",                                      │
-│     confidence: 50–99,                                                │
-│     credibility_score: 0–100,                                         │
-│     risk_level: "low" | "medium" | "high",                            │
-│     summary: "…",                                                     │
-│     reasoning: "…",                                                   │
-│     factors: {  writing_style, headline_quality, source_reputation,   │
-│                 language_complexity, evidence_presence, bias,         │
-│                 emotional_language, historical_reliability  },        │
-│     highlights: [ { phrase, category, reason }, … 3–8 items ],        │
-│     topics: [ "politics" | "health" | "finance" | … ],                │
-│     recommendations: [ 3 fact-check steps ],                          │
-│     suspicious_statements: [ … ]                                      │
-│   }                                                                   │
-│                                                                      │
-│   extract_json()  →  best-effort strip of code fences & noise        │
-│   time_taken_sec + model_used appended                               │
-└─────────────────────────────┬────────────────────────────────────────┘
-                              │
-                              ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  Post-processing                                                     │
-│                                                                      │
-│   • If URL was provided:                                             │
-│         rate_source(url) → lookup in TRUSTED_SOURCES dict            │
-│         → { domain, trust, bias, score, historical_fake_rate }       │
-│                                                                      │
-│   • Persist article document to Mongo:                               │
-│         { id: uuid, user_id, headline, text, url, source,            │
-│           favorite=false, created_at: iso, …AI fields }              │
-└─────────────────────────────┬────────────────────────────────────────┘
-                              │
-                              ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  Frontend Rendering (Analyze.jsx)                                    │
-│                                                                      │
-│   Three top cards:                                                   │
-│    • Prediction badge  🔴 Fake / 🟢 Real  + confidence%              │
-│    • Credibility Gauge  (animated SVG ring, color per score)          │
-│    • Meta card (model, time, topics, source, Export PDF button)      │
-│                                                                      │
-│   Below:                                                              │
-│    • Summary paragraph                                                │
-│    • Reasoning paragraph                                              │
-│    • Explainable-AI section:                                          │
-│         renders article text with inline <span class="hl-…">         │
-│         color-coded by category (clickbait / emotional / bias /       │
-│         unsupported / sensational / contradiction) + tooltip = why    │
-│    • Suspicious statements list                                       │
-│    • Recommendations list (fact-check steps)                          │
-│    • Credibility Factors  — animated horizontal bars 0–100            │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-### Explainable-AI Highlight Categories
-
-| Category | Color band | Meaning |
-|---|---|---|
-| `clickbait` | 🟥 red | Sensational or misleading phrasing |
-| `emotional` | 🟧 amber | Emotionally loaded language |
-| `bias` | 🟪 purple | One-sided or biased framing |
-| `unsupported` | 🟦 blue | Claim lacks cited evidence |
-| `sensational` | 🟪 pink | Hyperbolic or shocking language |
-| `contradiction` | 🟥 dark-red | Internal inconsistency with cited facts |
-
-Every span carries a `title` tooltip explaining **why** the AI flagged it — this is the "explanation" layer.
-
-### Credibility Score Formula (implicit)
-
-The LLM produces the 0–100 score based on this weighted set of factors (each also returned individually 0–100):
-
-| Factor | What it measures |
-|---|---|
-| Writing style | Grammar, tone, professionalism |
-| Headline quality | Descriptive vs clickbait |
-| Source reputation | Domain trust (if URL) |
-| Language complexity | Sophistication / hyperbole |
-| Evidence presence | Cited sources, quotes, data |
-| Bias | Political or ideological leaning |
-| Emotional language | Neutral vs inflammatory |
-| Historical reliability | Past reliability of similar claims |
-
-### Risk Level Mapping
-
-- `low` — credibility ≥ 70 and prediction = real
-- `medium` — mixed signals
-- `high` — credibility < 40 or prediction = fake
-
----
-
-## 3. History & Reports Workflow
+This is the core functionality of TruthLens AI.
 
 ```
-/history
-   ├── search input           → GET /api/history?q=…
-   ├── prediction filter      → GET /api/history?prediction=fake
-   ├── favorites toggle       → GET /api/history?favorite=true
-   ├── per-row actions:
-   │     ⭐ favorite           → POST /api/history/{id}/favorite
-   │     👁 view (opens /analyze/{id} with pre-loaded data)
-   │     🗑 delete             → DELETE /api/history/{id}
-   └── click headline         → /analyze/{id}
-
-/reports
-   └── grid of past analyses; each card has:
-         [PDF]  → GET /api/reports/{id}/pdf   (reportlab-generated)
-         [JSON] → GET /api/reports/{id}/json
-         [View] → /analyze/{id}
+                    User Input
+                         │
+      ┌──────────────────┼──────────────────┐
+      │                  │                  │
+      ▼                  ▼                  ▼
+   Text Input         URL Input        File Upload
+                                         PDF/DOCX/TXT
+      │                  │                  │
+      └──────────────────┼──────────────────┘
+                         ▼
+                  POST /api/analyze
+                         │
+                         ▼
 ```
 
 ---
 
-## 4. Trending & Sources
+## Backend Processing
+
+The backend prepares the article before sending it to the AI model.
+
+### Text Input
+
+- Uses the provided headline and article.
+
+### URL Input
+
+- Downloads webpage
+- Removes HTML tags
+- Extracts article text
+
+### File Upload
+
+- PDF → PyPDF
+- DOCX → python-docx
+- TXT → UTF-8 decoding
+
+Then:
+
+- Minimum 30 characters validation
+- Maximum 10,000 characters
+- Creates AI prompt
+
+---
+
+# 3. AI Analysis Pipeline
 
 ```
-/trending
-   → GET /api/trending  (last 500 articles across ALL users)
-   → Stacked bar (real vs fake by topic)
-   → Line chart (fake_rate % by topic)
-   → Word cloud (topic size proportional to volume)
+Article
+     │
+     ▼
+Prompt Construction
+     │
+     ▼
+OpenRouter API
+     │
+     ▼
+Qwen 3 32B (Free)
+     │
+     ▼
+Structured JSON Response
+     │
+     ▼
+JSON Extraction
+```
 
-/sources
-   → GET /api/sources  (returns 15 seeded domains, sorted by score DESC)
-   → Table: domain / trust badge / bias / score
-   → Domain checker input:
-        GET /api/source-rating?url=<url>
-        → known domain returns full rating
-        → unknown domain returns { trust: "Unknown", score: 50 }
+The AI receives:
+
+- Headline
+- URL (optional)
+- Article text
+- System prompt
+
+The AI returns structured JSON including:
+
+- Prediction
+- Confidence
+- Credibility Score
+- Risk Level
+- Summary
+- Reasoning
+- Credibility Factors
+- Highlighted Phrases
+- Topics
+- Recommendations
+- Suspicious Statements
+
+Example:
+
+```json
+{
+  "prediction": "fake",
+  "confidence": 92,
+  "credibility_score": 18,
+  "risk_level": "high"
+}
 ```
 
 ---
 
-## 5. AI Chat Assistant
+# 4. Post Processing
 
-Floating button (bottom-right, all authenticated pages). Opens a glass panel:
+After AI analysis:
+
+### Source Rating
+
+If a URL is provided:
 
 ```
-User: "Why did you flag this article as fake?"
-        │
-        ▼
-POST /api/chat { message, article_id?, session_id? }
-        │
-        ▼
-Backend:
-   • Build system prompt = CHAT_SYSTEM + (article context if article_id)
-   • LlmChat.send_message() → GPT-5.2 response
-   • Store { user_message, ai_response, article_id, session_id } in chat_messages
-        │
-        ▼
-{ response, session_id }  → panel renders bubble
+URL
+   │
+   ▼
+Extract Domain
+   │
+   ▼
+Trusted Source Database
+   │
+   ▼
+Source Score
 ```
 
-The `session_id` is remembered for follow-up messages so the LLM has conversational context (via LlmChat's built-in history).
+Returns
+
+- Domain
+- Trust Level
+- Bias
+- Reliability Score
 
 ---
 
-## 6. Admin Workflow
+### Database Storage
 
-Available only to users with `role: "admin"` (first registered user auto-promoted).
+Every analysis is saved in MongoDB.
 
 ```
-/admin
-   ├── GET /api/admin/stats
-   │     → { users, articles, fake_detected, feedback_count }
-   ├── GET /api/admin/users  → full list (email, name, role, provider)
-   └── DELETE /api/admin/users/{id}  → deletes user + all their articles
-                                       (cannot delete self)
+Article
+      │
+      ▼
+MongoDB
+      │
+      ▼
+History
+Reports
+Trending
+Dashboard
 ```
+
+Stored information includes
+
+- User ID
+- Headline
+- Article
+- URL
+- Prediction
+- Credibility
+- AI reasoning
+- Timestamp
+- Favorite status
 
 ---
 
-## 7. End-to-End Example: Analyzing a Sample "Fake" Article
+# 5. Frontend Rendering
 
-1. User logs in with `test@truthlens.ai` / `test123`.
-2. Navigates to `/analyze`, clicks **Sample fake**.
-3. Article auto-populates:
-   > "SHOCKING: Scientists Discover Miracle Cure Big Pharma Doesn't Want You to Know!"
+After receiving the response:
+
+```
+Backend
+      │
+      ▼
+React Frontend
+      │
+      ▼
+Animated Dashboard
+```
+
+Displayed information includes
+
+### Prediction Card
+
+- Real / Fake
+- Confidence Percentage
+
+### Credibility Gauge
+
+Animated score from
+
+0 → 100
+
+### Summary
+
+Brief explanation generated by AI.
+
+### Detailed Reasoning
+
+Complete explanation of the decision.
+
+### Highlighted Text
+
+Important phrases are color coded.
+
+Categories include
+
+- Clickbait
+- Emotional Language
+- Bias
+- Unsupported Claims
+- Sensational Language
+- Contradictions
+
+### Recommendations
+
+Suggested fact-checking steps.
+
+### Credibility Factors
+
+Visual progress bars showing
+
+- Writing Style
+- Headline Quality
+- Source Reputation
+- Evidence Presence
+- Language Complexity
+- Bias
+- Emotional Language
+- Historical Reliability
+
+---
+
+# 6. History & Reports
+
+```
+History Page
+      │
+      ├── Search
+      ├── Filter
+      ├── Favorite
+      ├── Delete
+      └── View Analysis
+```
+
+Reports page allows
+
+- PDF Export
+- JSON Export
+- Reopening previous analyses
+
+---
+
+# 7. Trending Analytics
+
+```
+All Articles
+      │
+      ▼
+Statistics Engine
+      │
+      ▼
+Charts & Graphs
+```
+
+Includes
+
+- Real vs Fake comparison
+- Topic distribution
+- Fake news trends
+- Source reliability
+
+---
+
+# 8. AI Chat Assistant
+
+Every authenticated user has access to the AI assistant.
+
+Workflow:
+
+```
+User Question
+       │
+       ▼
+POST /api/chat
+       │
+       ▼
+Backend
+       │
+       ▼
+Build Context
+       │
+       ▼
+OpenRouter API
+       │
+       ▼
+Qwen 3 32B
+       │
+       ▼
+AI Response
+       │
+       ▼
+Saved in MongoDB
+```
+
+If the chat is opened from an analyzed article, the AI automatically receives:
+
+- Article headline
+- Prediction
+- Credibility score
+- Summary
+
+This allows the assistant to explain *why* the article received its classification.
+
+---
+
+# 9. Admin Workflow
+
+Only administrators can access the Admin Dashboard.
+
+Available features
+
+- View all users
+- View platform statistics
+- Delete users
+- Monitor fake news detection count
+- View user feedback
+
+---
+
+# 10. Complete Example
+
+1. User logs in.
+
+2. Opens Analyze page.
+
+3. Pastes a news article.
+
 4. Clicks **Analyze**.
-5. `POST /api/analyze` returns in ~2–4 s:
-   ```json
-   {
-     "prediction": "fake",
-     "confidence": 94,
-     "credibility_score": 18,
-     "risk_level": "high",
-     "summary": "The article uses sensational language …",
-     "highlights": [
-       { "phrase": "SHOCKING", "category": "clickbait", "reason": "All-caps sensationalism" },
-       { "phrase": "miracle cure", "category": "sensational", "reason": "Unverified claim" },
-       ...
-     ],
-     "topics": ["health"],
-     ...
-   }
-   ```
-6. UI renders 🔴 Likely Fake, gauge sweeps to `18` in red, article text renders with highlighted spans, credibility factor bars animate in.
-7. User clicks **Export PDF** → downloads `truthlens-<id>.pdf`.
-8. Analysis is now in `/history` and contributes to `/trending`.
 
-That's the full loop. 🎯
+5. Backend preprocesses the article.
+
+6. The article is sent to **OpenRouter**, which forwards the request to the **Qwen 3 32B** model.
+
+7. The AI returns structured JSON.
+
+8. Backend validates and stores the response.
+
+9. Frontend displays:
+
+- Prediction
+- Credibility Score
+- Summary
+- Reasoning
+- Highlighted phrases
+- Recommendations
+- Interactive charts
+
+10. User exports the PDF report.
+
+11. The analysis is permanently stored in History.
+
+12. The AI Chat Assistant can answer follow-up questions about the analyzed article.
+
+---
+
+# Workflow Summary
+
+```
+User
+   │
+   ▼
+Authentication
+   │
+   ▼
+News Input
+   │
+   ▼
+Backend Processing
+   │
+   ▼
+OpenRouter API
+   │
+   ▼
+Qwen 3 32B
+   │
+   ▼
+Structured JSON
+   │
+   ▼
+MongoDB Storage
+   │
+   ▼
+Frontend Dashboard
+   │
+   ▼
+History • Reports • AI Chat • Analytics
+```
+
+---
+
+This workflow demonstrates the complete lifecycle of a news article inside TruthLens AI—from user submission to explainable AI analysis, secure storage, visualization, and interactive assistance.

@@ -99,9 +99,6 @@ backend/env/
 .pytest_cache/
 .ruff_cache/
 
-# AI generated files
-.emergent/
-
 # Test output
 test_reports/
 test_result.md

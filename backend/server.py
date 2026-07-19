@@ -27,7 +27,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from openai import AsyncOpenAI
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -45,7 +45,12 @@ security = HTTPBearer(auto_error=False)
 JWT_SECRET = os.environ.get('JWT_SECRET', 'change-me')
 JWT_ALG = 'HS256'
 JWT_TTL_HOURS = 24 * 7
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+
+client_ai = AsyncOpenAI(
+    api_key=OPENROUTER_API_KEY,
+    base_url="https://openrouter.ai/api/v1"
+)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -86,7 +91,7 @@ class AnalyzeRequest(BaseModel):
     headline: Optional[str] = ""
     text: str = ""
     url: Optional[str] = ""
-    model: Optional[str] = "gpt-5.2"
+    model: Optional[str] = "default"
 
 
 class ChatRequest(BaseModel):
@@ -196,36 +201,52 @@ def extract_json(text: str) -> Dict[str, Any]:
     return json.loads(text[start:end + 1])
 
 
-async def run_analysis(headline: str, article_text: str, url: str, model: str) -> Dict[str, Any]:
-    session_id = f"analysis-{uuid.uuid4()}"
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=session_id,
-        system_message=ANALYSIS_SYSTEM,
-    ).with_model("openai", model or "gpt-5.2")
+async def run_analysis(headline, article_text, url, model_name):
 
     parts = []
+
     if headline:
         parts.append(f"HEADLINE: {headline}")
+
     if url:
         parts.append(f"URL: {url}")
+
     parts.append(f"ARTICLE:\n{article_text}")
-    prompt = "\n\n".join(parts)
+
+    prompt = ANALYSIS_SYSTEM + "\n\n" + "\n\n".join(parts)
 
     start = datetime.now(timezone.utc)
-    response = await chat.send_message(UserMessage(text=prompt))
+
+    response = await client_ai.chat.completions.create(
+        model="openrouter/free",
+        messages=[
+            {
+                "role": "system",
+                "content": ANALYSIS_SYSTEM
+            },
+            {
+                "role": "user",
+                "content": "\n\n".join(parts)
+            }
+        ],
+        temperature=0.2
+    )
+
     elapsed = (datetime.now(timezone.utc) - start).total_seconds()
 
-    try:
-        result = extract_json(response)
-    except Exception as e:
-        logger.exception("Failed to parse LLM JSON")
-        raise HTTPException(status_code=502, detail=f"AI parsing failed: {e}")
+    print("Response:", response)
+
+    if not response.choices:
+        raise Exception(f"OpenRouter returned no choices: {response}")
+
+    ai_text = response.choices[0].message.content
+
+    result = extract_json(ai_text)
 
     result["time_taken_sec"] = round(elapsed, 2)
-    result["model_used"] = model or "gpt-5.2"
-    return result
+    result["model_used"] = "qwen3-32b-free"
 
+    return result
 
 # ------------------ Source Reliability ------------------
 TRUSTED_SOURCES = {
@@ -306,7 +327,7 @@ async def register(body: RegisterRequest):
         "role": role,
         "auth_provider": "local",
         "theme": "light",
-        "default_model": "gpt-5.2",
+        "default_model": "OpenRouter AI Model",
         "created_at": now_iso(),
     }
     await db.users.insert_one(user)
@@ -386,7 +407,7 @@ async def google_auth(body: GoogleAuthRequest):
             "role": role,
             "auth_provider": "google",
             "theme": "light",
-            "default_model": "gpt-5.2",
+            "default_model": "OpenRouter AI Model",
             "created_at": now_iso(),
         }
         await db.users.insert_one(user)
@@ -420,7 +441,7 @@ async def analyze(body: AnalyzeRequest, user=Depends(get_current_user)):
     if not text or len(text.strip()) < 30:
         raise HTTPException(status_code=400, detail="Article text too short. Provide at least 30 characters.")
 
-    result = await run_analysis(body.headline or "", text[:10000], body.url or "", body.model or "gpt-5.2")
+    result = await run_analysis(body.headline or "", text[:10000], body.url or "", body.model or "OpenRouter AI Model")
     source = rate_source(body.url) if body.url else None
 
     article_id = str(uuid.uuid4())
@@ -445,7 +466,7 @@ async def upload_file(file: UploadFile = File(...), headline: str = Form(""), us
     text = await extract_upload_text(file)
     if len(text.strip()) < 30:
         raise HTTPException(status_code=400, detail="Extracted text too short.")
-    result = await run_analysis(headline, text[:10000], "", "gpt-5.2")
+    result = await run_analysis(headline, text[:10000], "", "OpenRouter AI Model")
     article_id = str(uuid.uuid4())
     doc = {
         "id": article_id,
@@ -688,30 +709,62 @@ CHAT_SYSTEM = """You are TruthLens AI Assistant, a helpful media literacy expert
 async def chat_message(body: ChatRequest, user=Depends(get_current_user)):
     session_id = body.session_id or f"chat-{user['id']}"
     context = ""
+
     if body.article_id:
-        art = await db.articles.find_one({"id": body.article_id, "user_id": user["id"]}, {"_id": 0})
+        art = await db.articles.find_one(
+            {"id": body.article_id, "user_id": user["id"]},
+            {"_id": 0},
+        )
+
         if art:
-            context = f"\n\nARTICLE CONTEXT:\nHeadline: {art.get('headline')}\nPrediction: {art.get('prediction')} ({art.get('confidence')}%)\nCredibility: {art.get('credibility_score')}/100\nSummary: {art.get('summary')}\n"
+            context = (
+                f"\n\nARTICLE CONTEXT:\n"
+                f"Headline: {art.get('headline')}\n"
+                f"Prediction: {art.get('prediction')} ({art.get('confidence')}%)\n"
+                f"Credibility: {art.get('credibility_score')}/100\n"
+                f"Summary: {art.get('summary')}\n"
+            )
 
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=session_id,
-        system_message=CHAT_SYSTEM + context,
-    ).with_model("openai", "gpt-5.2")
+    prompt = f"""
+{CHAT_SYSTEM}
 
-    response = await chat.send_message(UserMessage(text=body.message))
+{context}
+
+User:
+{body.message}
+"""
+
+    response = await client_ai.chat.completions.create(
+        model="openrouter/free",
+        messages=[
+            {
+                "role": "system",
+                "content": CHAT_SYSTEM + context
+            },
+            {
+                "role": "user",
+                "content": body.message
+            }
+        ],
+        temperature=0.2
+    )
+
+    response_text = response.choices[0].message.content
 
     await db.chat_messages.insert_one({
         "id": str(uuid.uuid4()),
         "session_id": session_id,
         "user_id": user["id"],
         "user_message": body.message,
-        "ai_response": response,
+        "ai_response": response_text,
         "article_id": body.article_id,
         "created_at": now_iso(),
     })
-    return {"response": response, "session_id": session_id}
 
+    return {
+        "response": response_text,
+        "session_id": session_id,
+    }
 
 # ------------------ ADMIN ------------------
 @api_router.get("/admin/users")

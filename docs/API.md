@@ -2,169 +2,259 @@
 
 **Base URL**: `${REACT_APP_BACKEND_URL}/api`
 
-**Auth**: All endpoints except `/auth/register`, `/auth/login`, `/auth/google`, `/auth/forgot-password`, `/auth/reset-password`, and `/` require an HTTP `Authorization: Bearer <token>` header.
+**Authentication**
 
-**Content Type**: All request/response bodies are `application/json` unless noted (`/upload` uses `multipart/form-data`; `/reports/{id}/pdf` returns `application/pdf`).
+All endpoints except:
 
-**Error format**:
-```json
-{ "detail": "human-readable error message" }
+- `/auth/register`
+- `/auth/login`
+- `/auth/google`
+- `/auth/forgot-password`
+- `/auth/reset-password`
+- `/`
+
+require the following header:
+
 ```
-HTTP status codes: `200 OK`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `502 Bad Gateway` (AI parse failure), `500 Internal Server Error`.
+Authorization: Bearer <token>
+```
+
+**Content Type**
+
+- All requests and responses use `application/json` unless otherwise specified.
+- `/upload` uses `multipart/form-data`.
+- `/reports/{id}/pdf` returns `application/pdf`.
 
 ---
 
-## Auth
+## Error Format
 
-### `POST /api/auth/register`
-
-Create a new account. **First registered user auto-promotes to `admin`.**
-
-**Body**:
-```json
-{ "email": "user@example.com", "password": "min6chars", "name": "Jane Doe" }
-```
-
-**Response 200**:
 ```json
 {
-  "token": "eyJhbGci…",
+  "detail": "Human-readable error message"
+}
+```
+
+Common HTTP status codes:
+
+| Code | Meaning |
+|------|---------|
+| 200 | OK |
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 403 | Forbidden |
+| 404 | Not Found |
+| 500 | Internal Server Error |
+| 502 | AI Response Parsing Failed |
+
+---
+
+# Authentication
+
+## POST `/api/auth/register`
+
+Creates a new user account.
+
+> The first registered user is automatically assigned the **admin** role.
+
+### Request
+
+```json
+{
+  "email": "user@example.com",
+  "password": "minimum6characters",
+  "name": "Jane Doe"
+}
+```
+
+### Response
+
+```json
+{
+  "token": "JWT_TOKEN",
   "user": {
     "id": "uuid",
     "email": "user@example.com",
     "name": "Jane Doe",
-    "role": "user",           // or "admin" for first user
+    "role": "user",
     "auth_provider": "local",
     "theme": "light",
-    "default_model": "gpt-5.2",
-    "created_at": "2026-02-06T…"
+    "default_model": "Qwen 3 32B",
+    "created_at": "2026-02-06T00:00:00Z"
   }
 }
 ```
 
-**Errors**: `400 "Email already registered"`.
+---
+
+## POST `/api/auth/login`
+
+### Request
+
+```json
+{
+  "email": "user@example.com",
+  "password": "password"
+}
+```
+
+### Response
+
+Same as Register.
 
 ---
 
-### `POST /api/auth/login`
+## POST `/api/auth/google`
 
-**Body**: `{ "email": "…", "password": "…" }`
+Authenticates a user using Google OAuth.
 
-**Response 200**: same shape as register.
+If the user does not already exist, a new account is created automatically.
 
-**Errors**: `401 "Invalid credentials"`.
+### Request
 
----
+```json
+{
+  "session_id": "<google-session-id>"
+}
+```
 
-### `POST /api/auth/google`
+### Response
 
-Exchange an Emergent-managed Google OAuth `session_id` for a JWT.
-
-**Body**: `{ "session_id": "<from URL hash>" }`
-
-**Response 200**: same shape as login. Creates the user if they don't exist yet.
-
-**Errors**: `401 "Google auth failed"`.
+Same as Login.
 
 ---
 
-### `POST /api/auth/forgot-password`
+## POST `/api/auth/forgot-password`
 
-**Body**: `{ "email": "…" }`
+### Request
 
-**Response 200 (dev mode)**:
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+### Development Response
+
 ```json
 {
   "ok": true,
   "reset_token": "uuid",
-  "message": "Use this token to reset your password (dev mode)."
+  "message": "Use this token to reset your password."
 }
 ```
-In production this token would be emailed, not returned.
+
+> In production the reset token should be emailed rather than returned.
 
 ---
 
-### `POST /api/auth/reset-password`
+## POST `/api/auth/reset-password`
 
-**Body**: `{ "token": "<from forgot>", "new_password": "min6chars" }`
+### Request
 
-**Response 200**: `{ "ok": true }`.
-
-**Errors**: `400 "Invalid or expired token"`.
-
----
-
-### `GET /api/auth/me`
-
-**Response 200**: current user object (no password).
-
----
-
-### `PUT /api/auth/profile`
-
-Update mutable fields.
-
-**Body** (all optional): `{ "name": "…", "default_model": "gpt-5.2", "theme": "light" }`
-
-**Response 200**: full updated user object.
-
----
-
-## Analyze
-
-### `POST /api/analyze`
-
-Analyze text and/or URL content.
-
-**Body**:
 ```json
 {
-  "headline": "optional headline",
-  "text": "article body (30+ chars) — OR leave blank and provide url",
-  "url": "https://example.com/article",
-  "model": "gpt-5.2"       // optional; defaults to gpt-5.2
+  "token": "reset-token",
+  "new_password": "newpassword"
 }
 ```
 
-If `url` is provided and `text` is empty, backend fetches and extracts article body via `httpx`.
+### Response
 
-**Response 200**: see [Analysis Object](#analysis-object) below.
-
-**Errors**: `400 "Article text too short."`, `400 "URL fetch failed: …"`, `502 "AI parsing failed: …"`.
-
----
-
-### `POST /api/upload`
-
-Upload a file and analyze it.
-
-**Content-Type**: `multipart/form-data`
-
-**Form fields**:
-- `file` (required) — `.pdf`, `.docx`, or `.txt`
-- `headline` (optional string)
-
-**Response 200**: [Analysis Object](#analysis-object).
-
-**Errors**: `400 "Unsupported file type."`, `400 "Extracted text too short."`.
+```json
+{
+  "ok": true
+}
+```
 
 ---
 
-### Analysis Object
+## GET `/api/auth/me`
 
-Every analysis (from `/analyze`, `/upload`, `/history/{id}`) has this shape:
+Returns the currently authenticated user's profile.
+
+---
+
+## PUT `/api/auth/profile`
+
+Updates profile settings.
+
+### Request
+
+```json
+{
+  "name": "Jane Doe",
+  "default_model": "Qwen 3 32B",
+  "theme": "light"
+}
+```
+
+---
+
+# AI Analysis
+
+## POST `/api/analyze`
+
+Analyzes an article using the configured AI model.
+
+The backend supports:
+
+- Direct article text
+- News URL
+- AI-powered credibility analysis
+
+### Request
+
+```json
+{
+  "headline": "Optional headline",
+  "text": "Article body",
+  "url": "https://example.com/article",
+  "model": "Qwen 3 32B"
+}
+```
+
+If `url` is supplied and `text` is empty, the backend automatically downloads and extracts the article content.
+
+### Response
+
+Returns an **Analysis Object**.
+
+---
+
+## POST `/api/upload`
+
+Uploads and analyzes:
+
+- PDF
+- DOCX
+- TXT
+
+### Form Fields
+
+| Field | Required |
+|--------|----------|
+| file | Yes |
+| headline | No |
+
+Returns an **Analysis Object**.
+
+---
+
+# Analysis Object
 
 ```json
 {
   "id": "uuid",
   "user_id": "uuid",
-  "headline": "…",
-  "text": "…truncated to 10000 chars…",
-  "url": "…",
-  "filename": "article.pdf",       // only on /upload
-  "created_at": "2026-02-06T12:34:56+00:00",
+  "headline": "...",
+  "text": "...",
+  "url": "...",
+  "filename": "article.pdf",
+  "created_at": "2026-02-06T12:34:56Z",
   "favorite": false,
-  "source": {                        // only when URL was provided
+
+  "source": {
     "domain": "reuters.com",
     "score": 95,
     "trust": "Trusted",
@@ -172,12 +262,16 @@ Every analysis (from `/analyze`, `/upload`, `/history/{id}`) has this shape:
     "known": true,
     "historical_fake_rate": 5
   },
-  "prediction": "real",            // "real" or "fake"
-  "confidence": 92,                // 50–99
-  "credibility_score": 87,         // 0–100
-  "risk_level": "low",             // "low" | "medium" | "high"
-  "summary": "Two-sentence summary…",
-  "reasoning": "Paragraph explaining classification…",
+
+  "prediction": "real",
+  "confidence": 92,
+  "credibility_score": 87,
+  "risk_level": "low",
+
+  "summary": "...",
+
+  "reasoning": "...",
+
   "factors": {
     "writing_style": 88,
     "headline_quality": 90,
@@ -188,205 +282,215 @@ Every analysis (from `/analyze`, `/upload`, `/history/{id}`) has this shape:
     "emotional_language": 15,
     "historical_reliability": 92
   },
+
   "highlights": [
-    { "phrase": "exact substring", "category": "clickbait", "reason": "…" }
+    {
+      "phrase": "...",
+      "category": "clickbait",
+      "reason": "..."
+    }
   ],
-  "topics": ["finance"],
-  "recommendations": ["Verify with primary source X", "…"],
-  "suspicious_statements": ["Statement 1", "…"],
+
+  "topics": [
+    "technology"
+  ],
+
+  "recommendations": [
+    "Verify using trusted sources."
+  ],
+
+  "suspicious_statements": [
+    "..."
+  ],
+
   "time_taken_sec": 2.1,
-  "model_used": "gpt-5.2"
+
+  "model_used": "Qwen 3 32B"
 }
 ```
 
 ---
 
-## History
+# History
 
-### `GET /api/history`
+## GET `/api/history`
 
-**Query params** (all optional):
-- `q` — full-text search on headline / text
-- `prediction` — `real` | `fake`
-- `favorite` — `true`
-- `topic` — filter by topic string
-- `limit` — default 100
+Returns previous analyses.
 
-**Response 200**: `[ AnalysisObject, … ]` sorted newest first.
+Optional query parameters:
 
----
-
-### `GET /api/history/{id}`
-
-**Response 200**: single AnalysisObject.
-
-**Errors**: `404 "Not found"`.
+- q
+- prediction
+- favorite
+- topic
+- limit
 
 ---
 
-### `DELETE /api/history/{id}`
+## GET `/api/history/{id}`
 
-**Response 200**: `{ "ok": true }`.
-
----
-
-### `POST /api/history/{id}/favorite`
-
-Toggles favorite flag.
-
-**Response 200**: `{ "favorite": true }` (new value).
+Returns one analysis.
 
 ---
 
-## Analytics
+## DELETE `/api/history/{id}`
 
-### `GET /api/analytics`
+Deletes an analysis.
 
-**Response 200**:
-```json
-{
-  "total": 42,
-  "real": 30,
-  "fake": 12,
-  "avg_confidence": 84.5,
-  "avg_credibility": 71.2,
-  "today": 3,
-  "timeline":  [ { "date": "2026-02-04", "count": 5 }, … ],
-  "credibility_buckets": [
-    { "range": "0-20",   "count": 4 },
-    { "range": "21-40",  "count": 6 },
-    { "range": "41-60",  "count": 8 },
-    { "range": "61-80",  "count": 14 },
-    { "range": "81-100", "count": 10 }
-  ],
-  "confidence_histogram": [
-    { "range": "50-60", "count": 2 },
-    { "range": "60-70", "count": 5 },
-    { "range": "70-80", "count": 12 },
-    { "range": "80-90", "count": 15 },
-    { "range": "90-100","count": 8 }
-  ],
-  "top_topics": [ { "topic": "politics", "count": 12 }, … ],
-  "fake_topics": [ { "topic": "health", "count": 4 }, … ]
-}
+---
+
+## POST `/api/history/{id}/favorite`
+
+Toggles favorite status.
+
+---
+
+# Analytics
+
+## GET `/api/analytics`
+
+Returns dashboard analytics including:
+
+- Total analyses
+- Real/Fake counts
+- Average credibility
+- Timeline
+- Topic distribution
+- Confidence histogram
+
+---
+
+## GET `/api/trending`
+
+Returns trending topics across recent analyses.
+
+---
+
+# Source Ratings
+
+## GET `/api/sources`
+
+Returns all supported news sources with credibility scores.
+
+---
+
+## GET `/api/source-rating`
+
+```
+GET /api/source-rating?url=https://example.com/article
 ```
 
----
-
-### `GET /api/trending`
-
-Global (all users, last 500 articles) topic aggregation.
-
-**Response 200**:
-```json
-{
-  "trending": [
-    { "topic": "politics", "total": 20, "fake": 8, "real": 12, "fake_rate": 40.0 },
-    …
-  ],
-  "total_articles": 500
-}
-```
+Returns credibility information for the supplied domain.
 
 ---
 
-## Sources
+# Reports
 
-### `GET /api/sources`
+## GET `/api/reports/{id}/pdf`
 
-**Response 200**: full seeded list of 15 domains sorted by score DESC.
-
-```json
-[
-  { "domain": "reuters.com", "score": 95, "trust": "Trusted", "bias": "Center" },
-  { "domain": "economist.com", "score": 92, "trust": "Trusted", "bias": "Center" },
-  …
-]
-```
+Downloads the PDF report.
 
 ---
 
-### `GET /api/source-rating?url=<url>`
+## GET `/api/reports/{id}/json`
 
-**Response 200 (known)**:
-```json
-{ "domain": "reuters.com", "score": 95, "trust": "Trusted", "bias": "Center",
-  "known": true, "historical_fake_rate": 5 }
-```
-
-**Response 200 (unknown)**:
-```json
-{ "domain": "obscure-blog.xyz", "score": 50, "trust": "Unknown",
-  "bias": "Unknown", "known": false, "historical_fake_rate": null }
-```
+Returns the complete JSON analysis.
 
 ---
 
-## Reports
+# AI Chat
 
-### `GET /api/reports/{id}/pdf`
+## POST `/api/chat`
 
-Returns `application/pdf` (Content-Disposition: attachment).
+Interactive AI assistant for discussing analyzed articles.
 
----
+### Request
 
-### `GET /api/reports/{id}/json`
-
-Returns raw AnalysisObject.
-
----
-
-## Chat
-
-### `POST /api/chat`
-
-**Body**:
 ```json
 {
   "message": "Why is this article suspicious?",
-  "article_id": "uuid (optional — loads that article as context)",
-  "session_id": "chat-<userId> (optional — reuse to continue a conversation)"
+  "article_id": "optional",
+  "session_id": "optional"
 }
 ```
 
-**Response 200**: `{ "response": "AI reply…", "session_id": "chat-…" }`.
+### Response
 
----
-
-## Feedback
-
-### `POST /api/feedback`
-
-**Body**: `{ "article_id": "uuid", "rating": 5, "comment": "…" }`
-
-**Response 200**: `{ "ok": true }`.
-
----
-
-## Admin
-
-**All routes require `role: "admin"` — return `403 "Admin only"` otherwise.**
-
-### `GET /api/admin/users`
-Returns list of all users (no passwords).
-
-### `GET /api/admin/stats`
 ```json
-{ "users": 42, "articles": 512, "fake_detected": 187, "feedback_count": 23 }
+{
+  "response": "AI explanation...",
+  "session_id": "chat-user-id"
+}
 ```
 
-### `DELETE /api/admin/users/{user_id}`
-Deletes user + all their articles. Cannot delete yourself (400).
+The assistant uses the configured **OpenRouter-compatible AI model** (currently **Qwen 3 32B**) together with article context to answer follow-up questions.
 
 ---
 
-## Rate Limits
+# Feedback
 
-None enforced at the API layer (deferred to reverse proxy in production).
+## POST `/api/feedback`
 
-## OpenAPI
+### Request
 
-FastAPI auto-generates OpenAPI docs at:
-- **Swagger UI**: `${BACKEND_URL}/docs`
-- **ReDoc**: `${BACKEND_URL}/redoc`
-- **Schema JSON**: `${BACKEND_URL}/openapi.json`
+```json
+{
+  "article_id": "uuid",
+  "rating": 5,
+  "comment": "Helpful analysis."
+}
+```
+
+---
+
+# Admin
+
+All Admin endpoints require the authenticated user to have the **admin** role.
+
+## GET `/api/admin/users`
+
+Returns all registered users.
+
+---
+
+## GET `/api/admin/stats`
+
+Returns overall platform statistics.
+
+---
+
+## DELETE `/api/admin/users/{user_id}`
+
+Deletes a user and all associated analyses.
+
+The currently logged-in administrator cannot delete their own account.
+
+---
+
+# Rate Limiting
+
+No application-level rate limiting is implemented.
+
+For production deployments, rate limiting should be configured through a reverse proxy such as Nginx, Apache, Cloudflare, or an API Gateway.
+
+---
+
+# OpenAPI Documentation
+
+FastAPI automatically generates API documentation.
+
+| Endpoint | URL |
+|-----------|-----|
+| Swagger UI | `${BACKEND_URL}/docs` |
+| ReDoc | `${BACKEND_URL}/redoc` |
+| OpenAPI JSON | `${BACKEND_URL}/openapi.json` |
+
+---
+
+# AI Provider
+
+TruthLens AI uses:
+
+- **OpenRouter API**
+- **Qwen 3 32B (Free)** (default)
+- Compatible with any OpenAI-compatible model supported by OpenRouter by changing the configured model name.

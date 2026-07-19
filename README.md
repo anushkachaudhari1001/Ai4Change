@@ -4,16 +4,14 @@
 
 ### AI-Powered Fake News Detection & Credibility Analysis Platform
 
-![React](https://img.shields.io/badge/React-18-blue?logo=react)
-![Python](https://img.shields.io/badge/Python-3.11-yellow?logo=python)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3-38B2AC?logo=tailwind-css)
-![MongoDB](https://img.shields.io/badge/MongoDB-Database-47A248?logo=mongodb)
-![JWT](https://img.shields.io/badge/JWT-Authentication-black?logo=jsonwebtokens)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?logo=fastapi)
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?logo=mongodb)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-AI-purple)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
----
-
-### 🚀 Intelligent Fake News Detection using AI, Credibility Scoring & Source Verification
+### Detect misinformation using Open-Source Large Language Models
 
 </div>
 
@@ -21,87 +19,111 @@
 
 # 📖 Overview
 
-TruthLens AI is an AI-powered misinformation detection platform designed to help users evaluate the credibility of online news articles. It analyzes content using artificial intelligence and provides credibility scores, source reliability insights, and detailed reports to help users identify potentially misleading information.
+TruthLens AI is an AI-powered fake news detection platform that analyzes news articles using modern open-source Large Language Models (LLMs). It helps users determine whether news is likely genuine or misleading by generating credibility scores, explanations, summaries, and AI-powered insights.
 
-The platform combines modern web technologies with AI-based analysis to provide an intuitive, fast, and user-friendly experience.
+Users can analyze news through plain text, URLs, or uploaded documents and interact with an AI assistant to better understand the results.
 
 ---
 
-# ✨ Key Features
+# ✨ Features
 
-## 🤖 AI-Powered Analysis
+## 🤖 AI News Analysis
 
-- Analyze news articles using AI
-- Credibility score generation
 - Fake vs Real prediction
-- Intelligent content evaluation
+- Credibility Score (0–100)
+- Confidence Percentage
+- Risk Level
+- AI-generated Summary
+- Detailed Reasoning
+- Suspicious Claims Detection
+- Topic Classification
+- Fact-checking Recommendations
 
 ---
 
-## 📊 Interactive Dashboard
+## 💬 AI Chat Assistant
 
-- Personalized dashboard
-- Analysis history
-- Recent activity
-- Quick insights
-
----
-
-## 📑 Detailed Reports
-
-- AI-generated credibility reports
-- Confidence scoring
-- Source reliability information
-- Downloadable reports
+- Ask follow-up questions
+- Context-aware conversations
+- AI explanations
+- Session-based chat
+- Chat history
 
 ---
 
-## 🔐 User Authentication
+## 📄 Multiple Input Methods
 
-- Secure Login
+Analyze news using:
+
+- Plain Text
+- News URL
+- PDF Files
+- DOCX Files
+- TXT Files
+
+---
+
+## 📊 Dashboard
+
+- User Dashboard
+- Analysis History
+- Favorite Articles
+- Quick Statistics
+- Recent Activity
+
+---
+
+## 📑 PDF Report Generation
+
+Generate downloadable reports including:
+
+- Prediction
+- Credibility Score
+- Confidence
+- Summary
+- AI Reasoning
+- Recommendations
+- Source Information
+
+---
+
+## 🔐 Authentication
+
 - User Registration
+- Secure Login
 - JWT Authentication
+- Password Hashing (bcrypt)
 - Protected Routes
 
 ---
 
-## 📈 Analytics
+## 👨‍💼 Admin Features
 
-- Previous analyses
-- Trending news
-- User history
-- Report management
-
----
-
-## ⚙️ Responsive User Interface
-
-- Modern React Interface
-- Mobile Friendly
-- Fast Navigation
-- Clean Dashboard Design
+- User Management
+- Platform Statistics
+- Feedback Monitoring
+- Article Management
 
 ---
 
-# 🏗️ Project Architecture
+# 🏗️ Project Structure
 
 ```
-TruthLensAI
+TruthLens-AI
 │
 ├── backend
 │   ├── server.py
 │   ├── requirements.txt
-│   └── API Services
+│   └── .env
 │
 ├── frontend
 │   ├── src
 │   ├── public
-│   ├── components
-│   └── pages
+│   └── package.json
 │
 ├── docs
 │
-├── tests
+├── memory
 │
 └── README.md
 ```
@@ -112,19 +134,35 @@ TruthLensAI
 
 ## Frontend
 
-- React.js
+- React 19
+- React Router 7
 - Tailwind CSS
-- JavaScript
-- HTML5
-- CSS3
+- ShadCN UI
+- Axios
+- Framer Motion
+- Recharts
 
 ---
 
 ## Backend
 
+- FastAPI
 - Python
-- REST API
-- JWT Authentication
+- MongoDB
+- Motor
+- JWT
+- bcrypt
+- ReportLab
+- PyPDF
+- python-docx
+
+---
+
+## Artificial Intelligence
+
+- OpenRouter API
+- OpenAI Python SDK
+- Qwen3 32B (Free Model)
 
 ---
 
@@ -134,137 +172,174 @@ TruthLensAI
 
 ---
 
-## AI & Analysis
+# 🚀 Installation
 
-- AI-based credibility evaluation
-- Content analysis
-- Source verification
-
----
-
-# 📂 Project Modules
-
-- Landing Page
-- User Authentication
-- Dashboard
-- AI Analysis
-- Reports
-- History
-- Trending News
-- Admin Panel
-- Settings
-
----
-
-# 📚 Documentation
-
-The project includes detailed documentation for easier understanding and deployment.
-
-| Document | Description |
-|----------|-------------|
-| API.md | API Reference |
-| ARCHITECTURE.md | System Architecture |
-| DATABASE.md | Database Design |
-| DEPLOYMENT.md | Deployment Guide |
-| TROUBLESHOOTING.md | Common Issues |
-| WORKFLOW.md | Project Workflow |
-
----
-
-# 🚀 Getting Started
-
-## Frontend Setup
+## 1. Clone Repository
 
 ```bash
-cd frontend
-npm install
-npm start
+git clone https://github.com/anushkachaudhari1001/TruthLens-AI.git
+
+cd TruthLens-AI
 ```
 
 ---
 
-## Backend Setup
+## 2. Backend Setup
 
 ```bash
 cd backend
+
 pip install -r requirements.txt
-python server.py
+
+uvicorn server:app --reload
+```
+
+Backend:
+
+```
+http://127.0.0.1:8000
+```
+
+Swagger:
+
+```
+http://127.0.0.1:8000/docs
 ```
 
 ---
 
-# 📁 Environment Variables
+## 3. Frontend Setup
 
-Create a `.env` file inside the backend directory and configure the required environment variables.
+```bash
+cd frontend
 
-Example:
+npm install --legacy-peer-deps
 
-```env
-MONGO_URL=your_database_url
-JWT_SECRET=your_secret_key
-EMERGENT_LLM_KEY=your_api_key
+npm start
 ```
 
-**⚠️ Do not commit your `.env` file to GitHub.**
+Frontend:
+
+```
+http://localhost:3000
+```
+
+---
+
+# ⚙️ Environment Variables
+
+Create a `.env` file inside the **backend** folder.
+
+```env
+MONGO_URL=your_mongodb_connection_string
+
+DB_NAME=truthlens
+
+JWT_SECRET=your_secret_key
+
+OPENROUTER_API_KEY=your_openrouter_api_key
+
+CORS_ORIGINS=http://localhost:3000
+```
+
+---
+
+# 📡 API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/register` | POST | Register user |
+| `/api/login` | POST | User login |
+| `/api/analyze` | POST | Analyze article |
+| `/api/chat` | POST | AI Chat |
+| `/api/history` | GET | Analysis history |
+| `/api/favorites` | GET | Favorite articles |
+| `/api/report/{id}` | GET | Download PDF report |
 
 ---
 
 # 🧪 Testing
 
-The project includes test cases and testing utilities for validating application functionality.
+Verify the application by:
 
-Run tests as required after installing project dependencies.
+- Registering a new user
+- Logging in
+- Analyzing article text
+- Analyzing URLs
+- Uploading PDF/DOCX/TXT files
+- Chatting with AI
+- Downloading PDF reports
+- Viewing History
+- Managing Favorites
 
 ---
 
-# 🔒 Security Features
+# 📚 Documentation
+
+Additional project documentation is available in the `docs` folder.
+
+- API.md
+- ARCHITECTURE.md
+- DATABASE.md
+- DEPLOYMENT.md
+- TROUBLESHOOTING.md
+- WORKFLOW.md
+
+---
+
+# 🔒 Security
 
 - JWT Authentication
-- Protected API Routes
-- Environment Variable Configuration
-- Secure User Authentication
+- Password Hashing using bcrypt
+- Environment Variables
+- Protected API Endpoints
+- MongoDB Authentication Support
 
 ---
 
 # 📸 Screenshots
 
-> Add screenshots of:
+Add screenshots of:
 
 - Landing Page
 - Login Page
 - Dashboard
-- AI Analysis
-- Report Generation
-
-(Recommended for better project presentation.)
+- News Analysis
+- AI Chat
+- PDF Report
+- History
+- Admin Dashboard
 
 ---
 
-# 🚀 Future Enhancements
+# 🚀 Future Improvements
 
-- Real-time News Verification
 - Browser Extension
 - Mobile Application
-- Multilingual Support
-- Explainable AI Predictions
-- Advanced Analytics Dashboard
-- Social Media Fact Checking
+- OCR Support
+- Live Fact-check APIs
+- Explainable AI
+- Multi-language Support
+- Source Reputation Database
+- Multiple AI Model Selection
 
 ---
 
-# 👩‍💻 Team
+# 👩‍💻 Developer
 
-**Hackathon Project**
-
-Developed as part of an AI Hackathon to combat misinformation using intelligent credibility analysis.
+Developed as a hackathon project focused on combating misinformation using modern open-source AI technologies.
 
 ---
 
 # 🤝 Contributing
 
-Contributions, suggestions and improvements are welcome.
+Contributions are welcome.
 
-Fork the repository, create your feature branch, and submit a pull request.
+1. Fork the repository
+2. Create a feature branch
+3. Commit changes
+4. Push the branch
+5. Open a Pull Request
 
 ---
 
@@ -276,8 +351,8 @@ This project is licensed under the MIT License.
 
 <div align="center">
 
-### ⭐ If you found this project useful, consider giving it a star!
+⭐ If you found this project useful, consider giving it a star!
 
-**TruthLens AI — Empowering users to make informed decisions through AI-powered news credibility analysis.**
+**TruthLens AI — Helping users identify misinformation through AI-powered credibility analysis.**
 
 </div>
